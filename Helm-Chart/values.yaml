@@ -16,7 +16,7 @@ workers:
   
   etl-bravo:
     repository: "etl-monorepo-app"
-    tag: "3408df9"
+    tag: "latest"
     dbType: "oracle" 
     secretEnv:
       BKTNAME:
@@ -28,7 +28,7 @@ workers:
   
   etl-charlie:
     repository: "etl-monorepo-app"
-    tag: "08286bb"
+    tag: "latest"
     dbType: "postgres"
     secretEnv:
       BKTNAME:
@@ -40,7 +40,7 @@ workers:
   
   etl-delta:
     repository: "etl-monorepo-app"
-    tag: "3408df9"
+    tag: "latest"
     dbType: "postgres"
     secretEnv:
       BKTNAME:
