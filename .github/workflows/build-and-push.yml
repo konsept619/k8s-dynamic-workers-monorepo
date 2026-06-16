@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 jobs:
-  build-and-push:
+  build-push-and-deploy: 
     runs-on: k3s-monorepo-runner
     outputs:
       short_sha: ${{ steps.vars.outputs.short_sha }}
@@ -24,14 +24,14 @@ jobs:
     
     env:
       REGISTRY: ${{ secrets.LOCAL_REGISTRY_URL }}
-      IMAGE_NAME: "etl-core-app"
+      IMAGE_NAME: "etl-monorepo-app"
       TAG: "test"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  
+          fetch-depth: 0    
 
       - name: Set outputs
         id: vars
@@ -41,14 +41,13 @@ jobs:
         id: detect
         run: |
           GLOBAL_CHANGED="false"
-          BUILD_REQUIRED="true" # Domyślnie budowanie jest wymagane
+          BUILD_REQUIRED="true"
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Forcing full rebuild due to manual workflow dispatch invocation."
             GLOBAL_CHANGED="true"
           else
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git show --name-only --pretty="" HEAD)
-
             NON_INFRA_CHANGES=$(echo "$CHANGED_FILES" | grep -v "^Helm-Chart/" || true)
             
             if [ -z "$NON_INFRA_CHANGES" ]; then
@@ -100,7 +99,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver: kubernetes
-          install: true  
+          install: true    
           buildkitd-config-inline: |
             [registry."${{ secrets.LOCAL_REGISTRY_URL }}"]
               http = true
@@ -113,38 +112,29 @@ jobs:
           context: .
           file: ./Containerfile
           push: true
-          build-summary: false
+          build-summary: false 
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short_sha }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  update-gitops:
-    needs: build-and-push
-    if: needs.build-and-push.outputs.matrix != ''
-    runs-on: k3s-runner-set
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Update Target Helm Tags and Push Direct
+      - name: Update Helm Chart Tags and Push Direct to Master
+        if: steps.detect.outputs.matrix != ''
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          SHA="${{ needs.build-and-push.outputs.short_sha }}"
-          MODULES_LIST="${{ needs.build-and-push.outputs.matrix }}"
+          SHA="${{ steps.vars.outputs.short_sha }}"
+          MODULES_LIST="${{ steps.detect.outputs.matrix }}"
           
           for WORKER in $MODULES_LIST; do
-            echo "Updating tag in GitOps for worker: $WORKER with value: $SHA"
+            echo "Updating tag in Helm-Chart for worker: $WORKER with value: $SHA"
             sed -i "/dbType: \"${WORKER}\"/!b; :a; /tag:/ {s/\(tag:\).*/\1 \"${SHA}\"/;b}; N; ba" Helm-Chart/values.yaml
           done
           
           git add Helm-Chart/values.yaml
-          git commit -m "Deploy [${MODULES_LIST}]: Synchronizacja tagów do SHA ${SHA} [skip ci]" || echo "No changes to commit"
+          git commit -m "Deploy [${MODULES_LIST}]: Synchronizing tags with SHA ${SHA} [skip ci]" || echo "No changes to commit"
           
           git pull --rebase origin master
           git push origin master
