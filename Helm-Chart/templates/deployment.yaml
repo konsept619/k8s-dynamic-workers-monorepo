@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $.Chart.Name }}-{{ $name }}
+  name: {{ $.Chart.Name }}-monorepo-{{ $name }}
   labels:
     app: etl
     instance: {{ $name }}
@@ -50,7 +50,7 @@ spec:
         
         envFrom:
         - configMapRef:
-            name: {{ $.Chart.Name }}-{{ $name }}-config
+            name: {{ $.Chart.Name }}-monorepo-{{ $name }}-config
         volumeMounts:
         - name: temp-data
           mountPath: /app/data
