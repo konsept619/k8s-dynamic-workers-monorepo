@@ -1,0 +1,5 @@
+apiVersion: v2
+name: etl-dynamic-orchestration
+description: Helm chart for ETL containers on OpenShift
+version: 0.1.0
+appVersion: "1.0.0"

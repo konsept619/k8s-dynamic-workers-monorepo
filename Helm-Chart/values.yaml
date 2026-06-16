@@ -1,0 +1,51 @@
+image:
+  pullPolicy: Always
+
+workers:
+  etl-alpha:
+    repository: "etl-core-app"
+    tag: "latest"
+    dbType: "mysql"   
+    secretEnv:
+      BKTNAME:
+        secretName: "etl-secret-alpha"
+        secretKey: "bucket"
+      DB_PASSWORD:
+        secretName: "etl-secret-alpha"
+        secretKey: "db-password"
+  
+  etl-bravo:
+    repository: "etl-core-app"
+    tag: "3408df9"
+    dbType: "oracle" 
+    secretEnv:
+      BKTNAME:
+        secretName: "etl-secret-bravo"
+        secretKey: "bucket"
+      DB_PASSWORD:
+        secretName: "etl-secret-bravo"
+        secretKey: "db-password"
+  
+  etl-charlie:
+    repository: "etl-core-app"
+    tag: "08286bb"
+    dbType: "postgres"
+    secretEnv:
+      BKTNAME:
+        secretName: "etl-secret-shared-postgres"
+        secretKey: "bucket"
+      DB_PASSWORD:
+        secretName: "etl-secret-shared-postgres"
+        secretKey: "db-password"
+  
+  etl-delta:
+    repository: "etl-core-app"
+    tag: "3408df9"
+    dbType: "postgres"
+    secretEnv:
+      BKTNAME:
+        secretName: "etl-secret-shared-postgres"
+        secretKey: "bucket"
+      DB_PASSWORD:
+        secretName: "etl-secret-shared-postgres"
+        secretKey: "db-password"

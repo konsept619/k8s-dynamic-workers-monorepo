@@ -1,0 +1,60 @@
+{{- range $name, $config := .Values.workers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Chart.Name }}-{{ $name }}
+  labels:
+    app: etl
+    instance: {{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      instance: {{ $name }}
+  template:
+    metadata:
+      labels:
+        instance: {{ $name }}
+      annotations:
+        checksum/config: {{ toJson $config | sha256sum }}
+        {{- if $config.secretEnv }}
+        {{- $secretList := list }}
+        {{- range $envName, $secretMapping := $config.secretEnv }}
+          {{- $secretList = append $secretList $secretMapping.secretName }}
+        {{- end }}
+        secret.reloader.stakater.com/reload: {{ $secretList | uniq | join "," | quote }}
+        {{- end }}
+    spec:
+      {{- if $.Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ $.Values.image.pullSecret }}
+      {{- end }}
+      containers:
+      - name: etl-process
+        image: "{{ $.Values.global.registry }}/{{ $config.repository }}:{{ $config.tag }}"
+        imagePullPolicy: {{ $.Values.image.pullPolicy | default "Always" }}
+        env:
+          - name: WORKER_TYPE
+            value: "{{ $config.dbType | upper }}"
+
+          {{- if $config.secretEnv }}
+          {{- range $envName, $secretMapping := $config.secretEnv }}
+          - name: {{ $envName }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ $secretMapping.secretName }}
+                key: {{ $secretMapping.secretKey }}
+          {{- end }}
+          {{- end }}
+        
+        envFrom:
+        - configMapRef:
+            name: {{ $.Chart.Name }}-{{ $name }}-config
+        volumeMounts:
+        - name: temp-data
+          mountPath: /app/data
+      volumes:
+      - name: temp-data
+        emptyDir: {}
+{{- end }}

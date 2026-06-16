@@ -1,0 +1,138 @@
+name: Build and Push to Local Registry
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'src/**'
+      - 'Containerfile'
+      - 'requirements.txt'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: k3s-runner-set
+    outputs:
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+      matrix: ${{ steps.detect.outputs.matrix }}
+    
+    env:
+      REGISTRY: ${{ secrets.LOCAL_REGISTRY_URL }}
+      IMAGE_NAME: "etl-core-app"
+      TAG: "test"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Set outputs
+        id: vars
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Detect Changed Modules
+        id: detect
+        run: |
+          
+          GLOBAL_CHANGED=false
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Forcing full rebuild due to manual workflow dispatch invocation."
+            GLOBAL_CHANGED="true"
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git show --name-only --pretty="" HEAD)
+            for file in $CHANGED_FILES; do
+              if [[ "$file" == "Containerfile" || "$file" == "requirements.txt" || "$file" == "src/main.py" ]]; then
+                GLOBAL_CHANGED="true"
+                break
+              fi
+            done
+          fi
+
+          MODULES=()
+          if [ "$GLOBAL_CHANGED" = "true" ]; then
+            echo "Change detected in global scope. Rebuilding all workers"
+            for file in src/queries/*.py; do
+              basename=$(basename "$file" .py)
+              if [[ "$basename" != "__init__" && -f "$file" ]]; then
+                MODULES+=("$basename")
+              fi
+            done
+          else
+            echo "Analising 'queries' directory"
+            for file in $CHANGED_FILES; do
+              if [[ "$file" == src/queries/*.py && "$file" != *"__init__.py"* ]]; then
+                if [ -f "$file" ]; then
+                  basename=$(basename "$file" .py)
+                  MODULES+=("$basename")
+                fi
+              fi
+            done
+          fi
+
+          if [ ${#MODULES[@]} -eq 0 ]; then
+            echo "matrix=" >> $GITHUB_OUTPUT
+          else
+            SPACE_SEPARATED_MODULES="${MODULES[*]}"
+            echo "matrix=$SPACE_SEPARATED_MODULES" >> $GITHUB_OUTPUT
+            echo "Generated modules list: $SPACE_SEPARATED_MODULES"
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: kubernetes
+          install: true 
+          buildkitd-config-inline: |
+            [registry."${{ secrets.LOCAL_REGISTRY_URL }}"]
+              http = true
+              insecure = true
+
+      - name: Build and Push
+        if: steps.detect.outputs.matrix != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          push: true
+          build-summary: false
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short_sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-gitops:
+    needs: build-and-push
+    if: needs.build-and-push.outputs.matrix != ''
+    runs-on: k3s-runner-set
+    steps:
+      - name: Checkout GitOps Repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'konsept619/k8s-dynamic-workers-gitops'
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops-repo
+
+      - name: Update Target Helm Tags and Push
+        run: |
+          cd gitops-repo
+          
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          SHA="${{ needs.build-and-push.outputs.short_sha }}"
+          MODULES_LIST="${{ needs.build-and-push.outputs.matrix }}"
+          
+          for WORKER in $MODULES_LIST; do
+            echo "Updating tag in GitOps for worker: $WORKER with value: $SHA"
+            sed -i "/dbType: \"${WORKER}\"/!b; :a; /tag:/ {s/\(tag:\).*/\1 \"${SHA}\"/;b}; N; ba" Helm-Chart/values.yaml
+          done
+          
+          git add Helm-Chart/values.yaml
+          git commit -m "Deploy [${MODULES_LIST}]: New tags to SHA ${SHA} [skip ci]" || echo "No changes to commit"
+          
+          git pull --rebase origin master
+          git push origin master
