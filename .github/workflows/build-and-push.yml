@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-and-push:
-    runs-on: k3s-runner-set
+    runs-on: k3s-monorepo-runner
     outputs:
       short_sha: ${{ steps.vars.outputs.short_sha }}
       matrix: ${{ steps.detect.outputs.matrix }}
