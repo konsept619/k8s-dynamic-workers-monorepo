@@ -130,7 +130,7 @@ jobs:
           
           for WORKER in $MODULES_LIST; do
             echo "Updating tag in Helm-Chart for worker: $WORKER with value: $SHA"
-            sed -i "/tag:/ {N; /\n.*dbType: \"${WORKER}\"/ {s/\(tag:\).*\(\n.*dbType:\)/\1 \"${SHA}\"\2/}; b}; :a; n; ba" Helm-Chart/values.yaml
+            sed -i "N; s/\(tag:\).*\(\n[[:space:]]*dbType: \"${WORKER}\"\)/\1 \"${SHA}\"\2/; P; D" Helm-Chart/values.yaml
           done
           
           git add Helm-Chart/values.yaml
