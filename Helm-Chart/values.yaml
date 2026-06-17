@@ -4,7 +4,7 @@ image:
 workers:
   etl-alpha:
     repository: "etl-monorepo-app"
-    tag: "latest"
+    tag: "05ab57a"
     dbType: "mysql"   
     secretEnv:
       BKTNAME:
@@ -16,7 +16,7 @@ workers:
   
   etl-bravo:
     repository: "etl-monorepo-app"
-    tag: "f5e4297"
+    tag: "05ab57a"
     dbType: "oracle" 
     secretEnv:
       BKTNAME:
@@ -28,7 +28,7 @@ workers:
   
   etl-charlie:
     repository: "etl-monorepo-app"
-    tag: "f5e4297"
+    tag: "05ab57a"
     dbType: "postgres"
     secretEnv:
       BKTNAME:
@@ -40,7 +40,7 @@ workers:
   
   etl-delta:
     repository: "etl-monorepo-app"
-    tag: "f5e4297"
+    tag: "05ab57a"
     dbType: "postgres"
     secretEnv:
       BKTNAME:
