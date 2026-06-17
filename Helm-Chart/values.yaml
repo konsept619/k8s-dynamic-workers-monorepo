@@ -16,7 +16,7 @@ workers:
   
   etl-bravo:
     repository: "etl-monorepo-app"
-    tag: "05ab57a"
+    tag: "01cebb6"
     dbType: "oracle" 
     secretEnv:
       BKTNAME:
