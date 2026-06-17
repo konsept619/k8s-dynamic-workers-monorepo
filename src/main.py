@@ -9,7 +9,7 @@ VARIABLES_TO_CHECK = [
 ]
 
 def print_status():
-    print(f"\n--- Forcing change in global scope 16:04 ---")
+    print(f"\n--- Forcing change in global scope 12:16 ---")
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n--- ETL Status Check: {now} ---")
 
