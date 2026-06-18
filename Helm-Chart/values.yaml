@@ -16,13 +16,8 @@ workers:
   
   etl-bravo:
     repository: "etl-monorepo-app"
-<<<<<<< HEAD
     tag: "d0598b1"
     dbType: "oracle"
-=======
-    tag: "d0598b1"
-    dbType: "oracle" 
->>>>>>> df76c40d408381362957d6740d589614575b3206
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-bravo"
