@@ -5,7 +5,7 @@ workers:
   etl-alpha:
     repository: "etl-monorepo-app"
     tag: "0fbe0ec"
-    dbType: "mysql"   
+    dbType: "mysql"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-alpha"
@@ -17,7 +17,7 @@ workers:
   etl-bravo:
     repository: "etl-monorepo-app"
     tag: "0fbe0ec"
-    dbType: "oracle" 
+    dbType: "oracle"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-bravo"
