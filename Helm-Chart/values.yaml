@@ -29,7 +29,7 @@ workers:
   etl-charlie:
     repository: "etl-monorepo-app"
     dbType: "postgres"
-    tag: "7599ce4"
+    tag: "ce69c06"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-shared-postgres"
@@ -41,7 +41,7 @@ workers:
   etl-delta:
     repository: "etl-monorepo-app"
     dbType: "postgres"
-    tag: "7599ce4"
+    tag: "ce69c06"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-shared-postgres"
