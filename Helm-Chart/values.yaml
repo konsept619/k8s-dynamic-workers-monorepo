@@ -4,8 +4,8 @@ image:
 workers:
   etl-alpha:
     repository: "etl-monorepo-app"
-    tag: "0fbe0ec"
     dbType: "mysql"
+    tag: "0fbe0ec"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-alpha"
@@ -16,8 +16,8 @@ workers:
   
   etl-bravo:
     repository: "etl-monorepo-app"
-    tag: "76173f5"
     dbType: "oracle"
+    tag: "76173f5"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-bravo"
@@ -28,8 +28,8 @@ workers:
   
   etl-charlie:
     repository: "etl-monorepo-app"
-    tag: "76173f5"
     dbType: "postgres"
+    tag: "76173f5"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-shared-postgres"
@@ -40,8 +40,8 @@ workers:
   
   etl-delta:
     repository: "etl-monorepo-app"
-    tag: "76173f5"
     dbType: "postgres"
+    tag: "76173f5"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-shared-postgres"
