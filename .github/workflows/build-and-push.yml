@@ -8,20 +8,14 @@ on:
       - 'src/**'
       - 'Containerfile'
       - 'requirements.txt'
-      - 'Helm-Chart/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build-push-and-deploy: 
+  build-push-and-deploy:
     runs-on: k3s-monorepo-runner
-    outputs:
-      short_sha: ${{ steps.vars.outputs.short_sha }}
-      matrix: ${{ steps.detect.outputs.matrix }}
-      build_required: ${{ steps.detect.outputs.build_required }}
-    
     env:
       REGISTRY: ${{ secrets.LOCAL_REGISTRY_URL }}
       IMAGE_NAME: "etl-monorepo-app"
@@ -31,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0    
+          fetch-depth: 0 
 
       - name: Set outputs
         id: vars
@@ -40,34 +34,24 @@ jobs:
       - name: Detect Changed Modules
         id: detect
         run: |
-          GLOBAL_CHANGED="false"
-          BUILD_REQUIRED="true"
+          GLOBAL_CHANGED=false
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Forcing full rebuild due to manual workflow dispatch invocation."
             GLOBAL_CHANGED="true"
           else
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git show --name-only --pretty="" HEAD)
-            NON_INFRA_CHANGES=$(echo "$CHANGED_FILES" | grep -v "^Helm-Chart/" || true)
-            
-            if [ -z "$NON_INFRA_CHANGES" ]; then
-              echo "Only Helm-Chart files have changed. Skipping Docker image building."
-              BUILD_REQUIRED="false"
-            else
-              for file in $NON_INFRA_CHANGES; do
-                if [[ "$file" == "Containerfile" || "$file" == "requirements.txt" || "$file" == "src/main.py" ]]; then
-                  GLOBAL_CHANGED="true"
-                  break
-                fi
-              done
-            fi
+            for file in $CHANGED_FILES; do
+              if [[ "$file" == "Containerfile" || "$file" == "requirements.txt" || "$file" == "src/main.py" ]]; then
+                GLOBAL_CHANGED="true"
+                break
+              fi
+            done
           fi
 
-          echo "build_required=$BUILD_REQUIRED" >> $GITHUB_OUTPUT
-
           MODULES=()
-          if [ "$GLOBAL_CHANGED" = "true" ] || [ "$BUILD_REQUIRED" = "false" ]; then
-            echo "Change detected in global scope or infra-only update. Refreshing all workers."
+          if [ "$GLOBAL_CHANGED" = "true" ]; then
+            echo "Change detected in global scope. Rebuilding all workers"
             for file in src/queries/*.py; do
               basename=$(basename "$file" .py)
               if [[ "$basename" != "__init__" && -f "$file" ]]; then
@@ -76,7 +60,7 @@ jobs:
             done
           else
             echo "Analising 'queries' directory"
-            for file in $NON_INFRA_CHANGES; do
+            for file in $CHANGED_FILES; do
               if [[ "$file" == src/queries/*.py && "$file" != *"__init__.py"* ]]; then
                 if [ -f "$file" ]; then
                   basename=$(basename "$file" .py)
@@ -95,31 +79,31 @@ jobs:
           fi
 
       - name: Set up Buildx
-        if: steps.detect.outputs.build_required == 'true' && steps.detect.outputs.matrix != ''
+        if: steps.detect.outputs.matrix != ''
         uses: docker/setup-buildx-action@v3
         with:
           driver: kubernetes
-          install: true    
+          install: true 
           buildkitd-config-inline: |
             [registry."${{ secrets.LOCAL_REGISTRY_URL }}"]
               http = true
               insecure = true
 
       - name: Build and Push
-        if: steps.detect.outputs.build_required == 'true' && steps.detect.outputs.matrix != ''
+        if: steps.detect.outputs.matrix != ''
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Containerfile
           push: true
-          build-summary: false 
+          build-summary: false
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short_sha }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update Helm Chart Tags and Push Direct to Master
+      - name: Update Target Helm Tags and Push Direct to Master
         if: steps.detect.outputs.matrix != ''
         run: |
           git config --global user.name "github-actions[bot]"
@@ -129,12 +113,12 @@ jobs:
           MODULES_LIST="${{ steps.detect.outputs.matrix }}"
           
           for WORKER in $MODULES_LIST; do
-            echo "Updating tag in Helm-Chart for worker: $WORKER with value: $SHA"
-            sed -i "N; s/\(tag:\).*\(\n[[:space:]]*dbType: \"${WORKER}\"\)/\1 \"${SHA}\"\2/; P; D" Helm-Chart/values.yaml
+            echo "Updating tag in Helm-Chart for dbType: $WORKER with value: $SHA"
+            sed -i "/dbType: \"${WORKER}\"/!b; :a; /tag:/ {s/\(tag:\).*/\1 \"${SHA}\"/;b}; N; ba" Helm-Chart/values.yaml
           done
           
           git add Helm-Chart/values.yaml
-          git commit -m "Deploy [${MODULES_LIST}]: Synchronizing tags with SHA ${SHA} [skip ci]" || echo "No changes to commit"
+          git commit -m "Deploy [${MODULES_LIST}]: New tags to SHA ${SHA} [skip ci]" || echo "No changes to commit"
           
           git pull --rebase origin master
           git push origin master
