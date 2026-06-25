@@ -17,7 +17,7 @@ workers:
   etl-bravo:
     repository: "etl-monorepo-app"
     dbType: "oracle"
-    tag: "76b1638"
+    tag: "ccc354a"
     secretEnv:
       BKTNAME:
         secretName: "etl-secret-bravo"
